@@ -122,7 +122,13 @@ const documentSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-    toJSON: { virtuals: true },
+    toJSON: {
+      virtuals: true,
+      transform: (_doc, ret) => {
+        delete ret.storagePath;
+        return ret;
+      },
+    },
     toObject: { virtuals: true },
   }
 );

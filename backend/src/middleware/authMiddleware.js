@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import { User } from '../models/index.js';
+import { resolveSecret } from '../config/productionEnv.js';
 
 /**
  * Authentication Middleware
@@ -29,7 +30,7 @@ export async function authenticate(req, res, next) {
     }
 
     // Verify token
-    const secret = process.env.JWT_SECRET || 'society_ledger_dev_jwt_secret_change_in_production';
+    const secret = resolveSecret('JWT_SECRET');
     let decoded;
     try {
       decoded = jwt.verify(token, secret);

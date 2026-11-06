@@ -17,11 +17,12 @@
     "test:reconciliation": "node tests/reconciliation.test.js",
     "test:audit": "node tests/audit.test.js",
     "test:documents": "node tests/documents.test.js",
-    "test": "node tests/databaseName.test.js && node tests/health.test.js && node tests/models.test.js && node tests/auth.test.js && node tests/financial.test.js && node tests/events.test.js && node tests/resident.test.js && node tests/compliance.test.js && node tests/reconciliation.test.js && node tests/audit.test.js && node tests/documents.test.js && node tests/authorization.test.js && node tests/admin.test.js && node tests/exposure.test.js && node tests/consistency.test.js && node tests/reporting.test.js",
+    "test": "node tests/databaseName.test.js && node tests/serverless.test.js && node tests/documentStorage.test.js && node tests/health.test.js && node tests/models.test.js && node tests/auth.test.js && node tests/financial.test.js && node tests/events.test.js && node tests/resident.test.js && node tests/compliance.test.js && node tests/reconciliation.test.js && node tests/audit.test.js && node tests/documents.test.js && node tests/authorization.test.js && node tests/admin.test.js && node tests/exposure.test.js && node tests/consistency.test.js && node tests/reporting.test.js",
     "seed": "node src/seeds/seed.js",
     "bootstrap:production": "node src/bootstrap/runProductionInit.js"
   },
   "dependencies": {
+    "@vercel/blob": "^2.3.0",
     "bcryptjs": "^2.4.3",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",

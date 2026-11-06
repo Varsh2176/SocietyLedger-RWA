@@ -5,6 +5,8 @@ import cookieParser from 'cookie-parser';
 import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
 import apiRouter from './routes/index.js';
+import { connectDB } from './config/db.js';
+import { resolveSecret } from './config/productionEnv.js';
 import { notFound } from './middleware/notFound.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
@@ -16,7 +18,21 @@ function allowedBrowserOrigins() {
   return configured;
 }
 
-export function createApp() {
+function databaseUnavailable(res) {
+  return res.status(503).json({
+    success: false,
+    message: 'Database connection unavailable',
+    data: null,
+    errors: ['Database connection unavailable'],
+  });
+}
+
+/**
+ * @param {{ ensureDatabase?: boolean }} [options]
+ * ensureDatabase connects on the first request and reuses the warm connection.
+ * The local server connects before listen instead, so its default stays false.
+ */
+export function createApp({ ensureDatabase = false } = {}) {
   const app = express();
   const isProduction = process.env.NODE_ENV === 'production';
 
@@ -48,10 +64,11 @@ export function createApp() {
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   }));
 
-  // Rate Limiting
+  // Rate limiting. The memory store counts requests on this function instance only.
+  // It is not a shared limit across Vercel instances. No external store is added here.
   const limiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 1000, // Limit each IP to 1000 requests per window
+    max: 1000, // Limit each IP to 1000 requests per window on this instance
     standardHeaders: true,
     legacyHeaders: false,
     message: {
@@ -63,10 +80,23 @@ export function createApp() {
   });
   app.use('/api', limiter);
 
-  // Body and Cookie Parsers
+  // Application body limit remains 10 MB for local development and Render.
+  // Vercel Functions reject a request body above 4.5 MB before this parser runs.
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-  app.use(cookieParser(process.env.COOKIE_SECRET || 'society_ledger_cookie_secret_dev'));
+  app.use(cookieParser(resolveSecret('COOKIE_SECRET')));
+
+  if (ensureDatabase) {
+    app.use(async (req, res, next) => {
+      try {
+        const database = await connectDB();
+        if (!database) return databaseUnavailable(res);
+        return next();
+      } catch (error) {
+        return next(error);
+      }
+    });
+  }
 
   // Request Logging
   if (process.env.NODE_ENV === 'production') {

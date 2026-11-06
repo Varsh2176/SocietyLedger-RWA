@@ -1,7 +1,7 @@
 import jwt from 'jsonwebtoken';
 import { User, Society, AuditLog } from '../models/index.js';
+import { resolveSecret } from '../config/productionEnv.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'society_ledger_dev_jwt_secret_change_in_production';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '1d';
 
 /**
@@ -15,7 +15,7 @@ function generateToken(user) {
       role: user.role,
       society: societyId,
     },
-    JWT_SECRET,
+    resolveSecret('JWT_SECRET'),
     { expiresIn: JWT_EXPIRES_IN }
   );
 }
@@ -23,13 +23,17 @@ function generateToken(user) {
 /**
  * Set HttpOnly cookie for session token
  */
-function sessionCookieOptions() {
-  const isProduction = process.env.NODE_ENV === 'production';
+/**
+ * Shared-origin session cookie. SameSite=Lax withholds the cookie from
+ * cross-site form posts, which is the CSRF control for the Vercel host.
+ * Local development stays insecure so http://localhost can keep the cookie.
+ */
+export function sessionCookieOptions(env = process.env) {
+  const isProduction = env.NODE_ENV === 'production';
   return {
     httpOnly: true,
     secure: isProduction,
-    // Separate frontend and API hosts require a cross-site cookie.
-    sameSite: isProduction ? 'none' : 'lax',
+    sameSite: 'lax',
     path: '/',
   };
 }

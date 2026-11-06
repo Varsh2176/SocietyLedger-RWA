@@ -46,6 +46,7 @@ function productionEnv(uri) {
     JWT_SECRET,
     COOKIE_SECRET,
     CLIENT_URL: 'https://societyledger.example',
+    BLOB_STORE_ID: 'store_test',
   };
 }
 

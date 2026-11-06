@@ -1,35 +1,15 @@
 import path from 'path';
-import fs from 'fs/promises';
-import { existsSync } from 'fs';
-import { fileURLToPath } from 'url';
 import { Document, AuditLog } from '../models/index.js';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const UPLOADS_DIR = process.env.UPLOADS_DIR
-  ? path.resolve(process.env.UPLOADS_DIR)
-  : path.resolve(__dirname, '../../uploads');
-
-function isStoredInsideUploads(storagePath) {
-  if (!storagePath || typeof storagePath !== 'string') return false;
-  const root = path.resolve(UPLOADS_DIR);
-  const target = path.resolve(storagePath);
-  const relative = path.relative(root, target);
-  return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
-}
+import {
+  maxDocumentBytes,
+  openDocument,
+  removeDocument,
+  storeDocument,
+  usesObjectStorage,
+} from '../storage/documentStorage.js';
 
 // Allowed extensions and MIME types
 const ALLOWED_EXTENSIONS = ['.pdf', '.png', '.jpg', '.jpeg', '.xlsx', '.csv', '.txt'];
-const ALLOWED_MIME_TYPES = [
-  'application/pdf',
-  'image/png',
-  'image/jpeg',
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  'text/csv',
-  'text/plain',
-  'application/octet-stream',
-];
-const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
 
 /**
  * Secure Document Management Controller
@@ -180,8 +160,8 @@ export async function uploadDocument(req, res, next) {
       errors.push(`Disallowed file extension '${ext}'. Allowed: ${ALLOWED_EXTENSIONS.join(', ')}`);
     }
 
-    if (fileSize && Number(fileSize) > MAX_FILE_SIZE_BYTES) {
-      errors.push('File size exceeds the maximum limit of 10 MB');
+    if (fileSize && Number(fileSize) > maxDocumentBytes()) {
+      errors.push(`File size exceeds the maximum limit of ${maxDocumentBytes() / (1024 * 1024)} MB`);
     }
 
     if (errors.length > 0) {
@@ -193,46 +173,38 @@ export async function uploadDocument(req, res, next) {
       });
     }
 
-    // Prepare society private directory
-    const societyDir = path.join(UPLOADS_DIR, String(req.societyId));
-    if (!existsSync(societyDir)) {
-      await fs.mkdir(societyDir, { recursive: true });
-    }
-
-    const safeBaseName = path.basename(fileName).replace(/[^a-zA-Z0-9._-]/g, '_');
-    const storageFileName = `${Date.now()}_${safeBaseName}`;
-    const storageFilePath = path.join(societyDir, storageFileName);
-
-    let actualSizeBytes = Number(fileSize) || 0;
-
-    // If base64 content provided, write to disk
+    let bytes;
     if (fileDataBase64 && typeof fileDataBase64 === 'string') {
       const cleanBase64 = fileDataBase64.replace(/^data:.*?;base64,/, '');
-      const buffer = Buffer.from(cleanBase64, 'base64');
-      actualSizeBytes = buffer.length;
-      if (actualSizeBytes > MAX_FILE_SIZE_BYTES) {
-        return res.status(400).json({
-          success: false,
-          message: 'File size exceeds 10 MB limit.',
-          data: null,
-          errors: ['Maximum upload size is 10 MB'],
-        });
-      }
-      await fs.writeFile(storageFilePath, buffer);
+      bytes = Buffer.from(cleanBase64, 'base64');
     } else {
-      // Mock / dummy file placeholder in dev mode
       const placeholderText = `SocietyLedger Document: ${name}\nUploaded by: ${req.user.name}\nTimestamp: ${new Date().toISOString()}`;
-      await fs.writeFile(storageFilePath, placeholderText, 'utf8');
-      actualSizeBytes = Buffer.byteLength(placeholderText);
+      bytes = Buffer.from(placeholderText, 'utf8');
     }
+
+    const limit = maxDocumentBytes();
+    if (bytes.length > limit) {
+      return res.status(400).json({
+        success: false,
+        message: `File size exceeds the maximum limit of ${limit / (1024 * 1024)} MB.`,
+        data: null,
+        errors: [`Maximum upload size is ${limit / (1024 * 1024)} MB`],
+      });
+    }
+
+    const storagePath = await storeDocument({
+      societyId: req.societyId,
+      fileName,
+      bytes,
+    });
 
     const document = await Document.create({
       society: req.societyId,
       name: name.trim(),
       category,
       mimeType: mimeType || 'application/pdf',
-      sizeBytes: actualSizeBytes,
-      storagePath: storageFilePath,
+      sizeBytes: bytes.length,
+      storagePath,
       uploadedBy: req.user._id,
       verificationStatus: 'PENDING',
       isPublishedToResidents: Boolean(isPublishedToResidents),
@@ -263,6 +235,22 @@ export async function uploadDocument(req, res, next) {
       errors: null,
     });
   } catch (error) {
+    if (error.code === 'DOCUMENT_STORAGE_UNAVAILABLE') {
+      return res.status(503).json({
+        success: false,
+        message: 'Private document storage is not configured.',
+        data: null,
+        errors: ['Private document storage is not configured'],
+      });
+    }
+    if (usesObjectStorage()) {
+      return res.status(502).json({
+        success: false,
+        message: 'Private document storage could not save the file.',
+        data: null,
+        errors: ['Private document storage failed'],
+      });
+    }
     next(error);
   }
 }
@@ -296,7 +284,7 @@ export async function downloadDocument(req, res, next) {
       });
     }
 
-    if (!document.storagePath || !isStoredInsideUploads(document.storagePath) || !existsSync(document.storagePath)) {
+    if (!document.storagePath) {
       return res.status(404).json({
         success: false,
         message: 'Physical file not found in storage repository.',
@@ -305,14 +293,33 @@ export async function downloadDocument(req, res, next) {
       });
     }
 
-    // Send file securely with Content-Disposition
+    const fileStream = await openDocument(document.storagePath);
+    if (!fileStream) {
+      return res.status(404).json({
+        success: false,
+        message: 'Physical file not found in storage repository.',
+        data: null,
+        errors: ['File missing on storage server'],
+      });
+    }
+
     res.setHeader('Content-Type', document.mimeType || 'application/octet-stream');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Cache-Control', 'private, no-store');
     res.setHeader(
       'Content-Disposition',
       `attachment; filename="${encodeURIComponent(document.name + path.extname(document.storagePath))}"`
     );
-    res.sendFile(document.storagePath);
+    fileStream.pipe(res);
   } catch (error) {
+    if (error.code === 'DOCUMENT_STORAGE_UNAVAILABLE' || usesObjectStorage()) {
+      return res.status(503).json({
+        success: false,
+        message: 'Private document storage is unavailable.',
+        data: null,
+        errors: ['Private document storage is unavailable'],
+      });
+    }
     next(error);
   }
 }
@@ -394,12 +401,11 @@ export async function deleteDocument(req, res, next) {
       });
     }
 
-    // Remove physical file from disk if exists
-    if (document.storagePath && isStoredInsideUploads(document.storagePath) && existsSync(document.storagePath)) {
+    if (document.storagePath) {
       try {
-        await fs.unlink(document.storagePath);
+        await removeDocument(document.storagePath);
       } catch (err) {
-        console.warn('Could not delete physical file:', err.message);
+        console.warn('Could not delete stored document file.');
       }
     }
 

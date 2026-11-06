@@ -79,25 +79,41 @@ export function redactMongoCredentials(message) {
   return redacted.trim() || 'Database connection failed.';
 }
 
+const DEFAULT_POOL_SIZE = 5;
+const MAX_CONFIGURABLE_POOL_SIZE = 20;
+
+let listenersAttached = false;
+let activeConnection = null;
+
 /**
- * Connects to MongoDB with structured logging and event lifecycle handlers.
+ * Serverless instances should not open the driver's default 100-connection pool.
+ * MONGODB_MAX_POOL_SIZE overrides the default of 5, up to 20.
  */
-export async function connectDB(uri) {
+export function mongoPoolSize(env = process.env) {
+  const parsed = Number(env.MONGODB_MAX_POOL_SIZE);
+  if (Number.isInteger(parsed) && parsed >= 1 && parsed <= MAX_CONFIGURABLE_POOL_SIZE) {
+    return parsed;
+  }
+  return DEFAULT_POOL_SIZE;
+}
+
+function resolveMongoUri(uri) {
   const isProduction = process.env.NODE_ENV === 'production';
   const configured = (typeof uri === 'string' && uri.trim())
     ? uri.trim()
     : String(process.env.MONGODB_URI || '').trim();
   if (isProduction && !configured) {
-    console.error('[MongoDB] Refusing to use the local database because MONGODB_URI is not set.');
-    return null;
+    return { error: 'Refusing to use the local database because MONGODB_URI is not set.' };
   }
   const mongoURI = configured || LOCAL_MONGODB_URI;
   const problem = mongoUriProblem(mongoURI, { production: isProduction });
-  if (problem) {
-    console.error(`[MongoDB] ${problem}`);
-    return null;
-  }
-  const target = describeMongoTarget(mongoURI);
+  if (problem) return { error: problem };
+  return { uri: mongoURI };
+}
+
+function attachConnectionListeners() {
+  if (listenersAttached) return;
+  listenersAttached = true;
 
   mongoose.connection.on('connected', () => {
     const port = mongoose.connection.port ? `:${mongoose.connection.port}` : '';
@@ -113,24 +129,52 @@ export async function connectDB(uri) {
   mongoose.connection.on('disconnected', () => {
     console.warn('[MongoDB] Connection lost. Reconnecting...');
   });
-
-  try {
-    const conn = await mongoose.connect(mongoURI, {
-      serverSelectionTimeoutMS: 5000,
-    });
-    return conn;
-  } catch (error) {
-    console.error(`[MongoDB] Initial connection failure: ${redactMongoCredentials(error?.message)}`);
-    console.error(`[MongoDB] Check that the database service is reachable at ${target}.`);
-    // Don't kill process immediately in dev so health endpoint can report DB down status
-    return null;
-  }
 }
 
 /**
- * Gracefully disconnects from MongoDB
+ * Connects to MongoDB once per warm process. Concurrent callers share one attempt.
+ * A failed attempt clears the cache so a later request can retry.
+ */
+export async function connectDB(uri) {
+  const resolved = resolveMongoUri(uri);
+  if (resolved.error) {
+    console.error(`[MongoDB] ${resolved.error}`);
+    return null;
+  }
+  const mongoURI = resolved.uri;
+
+  if (activeConnection && activeConnection.uri === mongoURI && mongoose.connection.readyState !== 0) {
+    return activeConnection.promise;
+  }
+
+  if (activeConnection && activeConnection.uri !== mongoURI) {
+    await activeConnection.promise.catch(() => null);
+  }
+
+  if (activeConnection && activeConnection.uri === mongoURI && mongoose.connection.readyState !== 0) {
+    return activeConnection.promise;
+  }
+
+  attachConnectionListeners();
+  const target = describeMongoTarget(mongoURI);
+  const promise = mongoose.connect(mongoURI, {
+    serverSelectionTimeoutMS: 5000,
+    maxPoolSize: mongoPoolSize(),
+  }).then((conn) => conn).catch((error) => {
+    if (activeConnection?.promise === promise) activeConnection = null;
+    console.error(`[MongoDB] Initial connection failure: ${redactMongoCredentials(error?.message)}`);
+    console.error(`[MongoDB] Check that the database service is reachable at ${target}.`);
+    return null;
+  });
+  activeConnection = { uri: mongoURI, promise };
+  return promise;
+}
+
+/**
+ * Gracefully disconnects from MongoDB and allows the next call to connect again.
  */
 export async function disconnectDB() {
+  activeConnection = null;
   if (mongoose.connection.readyState !== 0) {
     await mongoose.disconnect();
     console.log('[MongoDB] Disconnected successfully');

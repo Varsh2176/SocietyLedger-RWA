@@ -208,6 +208,8 @@ async function runAuthTests() {
     // Check cookie was set
     const setCookie = privEscRes.headers['set-cookie'];
     assert(setCookie && setCookie.some((c) => c.includes('jwt_token=')), 'HttpOnly jwt_token cookie set on registration');
+    assert(setCookie.some((cookie) => /httponly/i.test(cookie)), 'Registration session cookie is HttpOnly');
+    assert(setCookie.some((cookie) => /samesite=lax/i.test(cookie)), 'Registration session cookie is SameSite=Lax');
 
     // 1d: Duplicate email rejection
     const dupRes = await request(server, '/api/auth/register', 'POST', {
