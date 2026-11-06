@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import mongoose from 'mongoose';
-import { describeMongoTarget, redactMongoCredentials } from '../config/db.js';
+import { describeMongoTarget, mongoUriProblem, redactMongoCredentials } from '../config/db.js';
 import { Society, User, AuditLog, Fund, Transaction } from '../models/index.js';
 
 export const BOOTSTRAP_CONFIRMATION = 'INITIALIZE_GREENWOOD_HEIGHTS';
@@ -53,8 +53,13 @@ export function assertBootstrapAllowed(env) {
   if (env.BOOTSTRAP_CONFIRM !== BOOTSTRAP_CONFIRMATION) {
     problems.push(`BOOTSTRAP_CONFIRM must be ${BOOTSTRAP_CONFIRMATION}`);
   }
+  const databaseProblem = text(env.MONGODB_URI)
+    ? mongoUriProblem(env.MONGODB_URI, { production: env.NODE_ENV === 'production' })
+    : null;
   if (!text(env.MONGODB_URI)) {
     problems.push('MONGODB_URI is required');
+  } else if (databaseProblem) {
+    problems.push(databaseProblem);
   } else if (isAtlasUri(env.MONGODB_URI)) {
     if (env.NODE_ENV !== 'production') {
       problems.push('Atlas initialization requires NODE_ENV=production');

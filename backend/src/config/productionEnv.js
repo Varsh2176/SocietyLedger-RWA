@@ -1,3 +1,5 @@
+import { mongoUriProblem } from './db.js';
+
 const DEVELOPMENT_SECRETS = new Set([
   'society_ledger_dev_jwt_secret_change_in_production',
   'society_ledger_cookie_secret_dev',
@@ -8,24 +10,38 @@ const DEVELOPMENT_SECRETS = new Set([
 
 /**
  * Production startup checks. Reports missing names only, never secret values.
+ * Returns the problems instead of exiting so tests can inspect them.
  */
-export function validateProductionEnv() {
-  if (process.env.NODE_ENV !== 'production') return;
+export function collectProductionEnvProblems(env = process.env) {
+  if (env.NODE_ENV !== 'production') return [];
 
   const problems = [];
   for (const key of ['MONGODB_URI', 'JWT_SECRET', 'COOKIE_SECRET', 'CLIENT_URL']) {
-    if (!process.env[key] || !String(process.env[key]).trim()) {
+    if (!env[key] || !String(env[key]).trim()) {
       problems.push(`${key} is required`);
     }
   }
 
-  if (process.env.JWT_SECRET && DEVELOPMENT_SECRETS.has(process.env.JWT_SECRET)) {
+  if (env.MONGODB_URI && String(env.MONGODB_URI).trim()) {
+    const databaseProblem = mongoUriProblem(env.MONGODB_URI, { production: true });
+    if (databaseProblem) problems.push(databaseProblem);
+  }
+
+  if (env.JWT_SECRET && DEVELOPMENT_SECRETS.has(env.JWT_SECRET)) {
     problems.push('JWT_SECRET is still a development default');
   }
-  if (process.env.COOKIE_SECRET && DEVELOPMENT_SECRETS.has(process.env.COOKIE_SECRET)) {
+  if (env.COOKIE_SECRET && DEVELOPMENT_SECRETS.has(env.COOKIE_SECRET)) {
     problems.push('COOKIE_SECRET is still a development default');
   }
 
+  return problems;
+}
+
+/**
+ * Production startup checks. Reports missing names only, never secret values.
+ */
+export function validateProductionEnv() {
+  const problems = collectProductionEnvProblems();
   if (problems.length > 0) {
     console.error(`[Server] Production configuration is incomplete: ${problems.join('; ')}.`);
     process.exit(1);
