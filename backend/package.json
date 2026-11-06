@@ -1,0 +1,39 @@
+{
+  "name": "society-ledger-backend",
+  "version": "0.1.0",
+  "description": "Core Express & Mongoose API server for SocietyLedger",
+  "main": "src/server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test:health": "node tests/health.test.js",
+    "test:models": "node tests/models.test.js",
+    "test:auth": "node tests/auth.test.js",
+    "test:financial": "node tests/financial.test.js",
+    "test:events": "node tests/events.test.js",
+    "test:resident": "node tests/resident.test.js",
+    "test:compliance": "node tests/compliance.test.js",
+    "test:reconciliation": "node tests/reconciliation.test.js",
+    "test:audit": "node tests/audit.test.js",
+    "test:documents": "node tests/documents.test.js",
+    "test": "node tests/health.test.js && node tests/models.test.js && node tests/auth.test.js && node tests/financial.test.js && node tests/events.test.js && node tests/resident.test.js && node tests/compliance.test.js && node tests/reconciliation.test.js && node tests/audit.test.js && node tests/documents.test.js && node tests/authorization.test.js && node tests/admin.test.js && node tests/exposure.test.js && node tests/consistency.test.js && node tests/reporting.test.js",
+    "seed": "node src/seeds/seed.js",
+    "bootstrap:production": "node src/bootstrap/runProductionInit.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "helmet": "^8.0.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.9.2",
+    "morgan": "^1.10.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.9"
+  }
+}

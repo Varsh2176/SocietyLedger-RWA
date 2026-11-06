@@ -1,0 +1,51 @@
+# Render Blueprint. Applying it creates services; it does not deploy by itself
+# until the Blueprint is synced and a deploy is approved.
+# Do not put real MongoDB URIs or passwords in this file.
+services:
+  - type: web
+    name: societyledger-api
+    runtime: node
+    region: singapore
+    plan: starter
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeployTrigger: off
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: COOKIE_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 1d
+      - key: CLIENT_URL
+        sync: false
+      - key: UPLOADS_DIR
+        value: /var/data/uploads
+    disk:
+      name: societyledger-uploads
+      mountPath: /var/data
+      sizeGB: 1
+
+  - type: web
+    name: societyledger-web
+    runtime: static
+    region: singapore
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    autoDeployTrigger: off
+    envVars:
+      - key: VITE_API_BASE_URL
+        sync: false
+      - key: VITE_ENABLE_MOCK_FALLBACK
+        value: "false"
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html

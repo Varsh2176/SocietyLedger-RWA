@@ -1,0 +1,25 @@
+{
+  "name": "society-ledger",
+  "version": "0.1.0",
+  "description": "Financial transparency and governance platform for apartment communities and Resident Welfare Associations",
+  "private": true,
+  "scripts": {
+    "dev:frontend": "npm --prefix frontend run dev",
+    "dev:backend": "npm --prefix backend run dev",
+    "start:backend": "npm --prefix backend start",
+    "build:frontend": "npm --prefix frontend run build",
+    "test:frontend": "npm --prefix frontend test",
+    "test:backend": "npm --prefix backend test",
+    "test": "npm run test:frontend && npm run test:backend",
+    "build": "npm run build:frontend"
+  },
+  "keywords": [
+    "mern",
+    "society-ledger",
+    "financial-transparency",
+    "governance",
+    "rwa"
+  ],
+  "author": "SocietyLedger Team",
+  "license": "ISC"
+}

@@ -1,0 +1,194 @@
+/**
+ * SocietyLedger API Contract & Enums Specification
+ * Phase 1 through Phase 7 Definitions
+ */
+
+export const USER_ROLES = {
+  ADMIN: 'Society Administrator',
+  TREASURER: 'Treasurer',
+  COMMITTEE_MEMBER: 'Committee Member',
+  AUDITOR: 'Auditor',
+  RESIDENT: 'Resident',
+};
+
+export const AUTH_ENDPOINTS = {
+  LOGIN: '/auth/login',
+  REGISTER: '/auth/register',
+  LOGOUT: '/auth/logout',
+  ME: '/auth/me',
+  REFRESH: '/auth/refresh',
+};
+
+export const FINANCIAL_ENDPOINTS = {
+  DASHBOARD_SUMMARY: '/dashboard/summary',
+  DASHBOARD_CHARTS: '/dashboard/charts',
+  FUNDS: '/funds',
+  TRANSACTIONS: '/transactions',
+  REPORTS_INCOME_EXPENSE: '/reports/income-expenditure',
+  REPORTS_FUND_STATEMENT: '/reports/fund-statement',
+  REPORTS_BALANCE_SHEET: '/reports/balance-sheet',
+};
+
+export const WORKFLOW_ENDPOINTS = {
+  EVENTS: '/events',
+  APPROVALS: '/approvals',
+  COMPLIANCE: '/compliance',
+  RECONCILIATION: '/reconciliation',
+  AUDIT_LOGS: '/audit/logs',
+  AUDIT_OBSERVATIONS: '/audit/observations',
+  DOCUMENTS: '/documents',
+};
+
+export const ADMIN_ENDPOINTS = {
+  MEMBERS: '/admin/members',
+  SOCIETY: '/admin/society',
+  ROTATE_INVITATION_CODE: '/admin/invitation-code/rotate',
+};
+
+/**
+ * Standard Financial Status Enums matching Backend
+ */
+export const TRANSACTION_STATUS = {
+  PENDING: 'PENDING',
+  APPROVED: 'APPROVED',
+  PAID: 'PAID',
+  REJECTED: 'REJECTED',
+  REVERSED: 'REVERSED',
+  RECONCILED: 'RECONCILED',
+};
+
+export const TRANSACTION_TYPES = {
+  INCOME: 'INCOME',
+  EXPENSE: 'EXPENSE',
+  TRANSFER: 'TRANSFER',
+};
+
+export const PAYMENT_METHODS = {
+  NEFT_RTGS: 'NEFT_RTGS',
+  UPI: 'UPI',
+  CHEQUE: 'CHEQUE',
+  CARD: 'CARD',
+  CASH: 'CASH',
+};
+
+export const FUND_TYPES = {
+  CORPUS: 'CORPUS',
+  OPERATIONAL: 'OPERATIONAL',
+  SINKING: 'SINKING',
+  SPECIAL_PROJECT: 'SPECIAL_PROJECT',
+};
+
+export const EVENT_STATUS = {
+  PROPOSED: 'PROPOSED',
+  APPROVED: 'APPROVED',
+  IN_PROGRESS: 'IN_PROGRESS',
+  COMPLETED: 'COMPLETED',
+  SETTLED: 'SETTLED',
+  CANCELLED: 'CANCELLED',
+};
+
+export const APPROVAL_STATUS = {
+  PENDING: 'PENDING',
+  APPROVED: 'APPROVED',
+  REJECTED: 'REJECTED',
+  INFO_REQUESTED: 'INFO_REQUESTED',
+};
+
+export const COMPLIANCE_STATUS = {
+  PENDING: 'PENDING',
+  FILED: 'FILED',
+  OVERDUE: 'OVERDUE',
+  CORRECTION_REQUIRED: 'CORRECTION_REQUIRED',
+};
+
+export const AUDIT_SEVERITY = {
+  HIGH: 'HIGH',
+  MEDIUM: 'MEDIUM',
+  LOW: 'LOW',
+  INFO: 'INFO',
+};
+
+export const AUDIT_OBSERVATION_STATUS = {
+  OPEN: 'OPEN',
+  UNDER_REVIEW: 'UNDER_REVIEW',
+  RESOLVED: 'RESOLVED',
+};
+
+export const QUERY_STATUS = {
+  OPEN: 'OPEN',
+  IN_PROGRESS: 'IN_PROGRESS',
+  ANSWERED: 'ANSWERED',
+  RESOLVED: 'RESOLVED',
+};
+
+/**
+ * Role Permission Matrix for Route Access
+ */
+export const ROUTE_PERMISSIONS = {
+  DASHBOARD: [
+    USER_ROLES.ADMIN,
+    USER_ROLES.TREASURER,
+    USER_ROLES.COMMITTEE_MEMBER,
+    USER_ROLES.AUDITOR,
+    USER_ROLES.RESIDENT,
+  ],
+  GOVERNANCE_DASHBOARD: [
+    USER_ROLES.ADMIN,
+    USER_ROLES.TREASURER,
+    USER_ROLES.COMMITTEE_MEMBER,
+    USER_ROLES.AUDITOR,
+  ],
+  RESIDENT_PORTAL: [
+    USER_ROLES.RESIDENT,
+  ],
+  FUNDS: [
+    USER_ROLES.ADMIN,
+    USER_ROLES.TREASURER,
+    USER_ROLES.COMMITTEE_MEMBER,
+    USER_ROLES.AUDITOR,
+  ],
+  TRANSACTIONS: [
+    USER_ROLES.ADMIN,
+    USER_ROLES.TREASURER,
+    USER_ROLES.COMMITTEE_MEMBER,
+    USER_ROLES.AUDITOR,
+    USER_ROLES.RESIDENT,
+  ],
+  APPROVALS: [
+    USER_ROLES.ADMIN,
+    USER_ROLES.TREASURER,
+    USER_ROLES.COMMITTEE_MEMBER,
+  ],
+  EVENTS: [
+    USER_ROLES.ADMIN,
+    USER_ROLES.TREASURER,
+    USER_ROLES.COMMITTEE_MEMBER,
+    USER_ROLES.AUDITOR,
+    USER_ROLES.RESIDENT,
+  ],
+  AUDIT: [
+    USER_ROLES.ADMIN,
+    USER_ROLES.AUDITOR,
+  ],
+  RECONCILIATION: [
+    USER_ROLES.ADMIN,
+    USER_ROLES.TREASURER,
+    USER_ROLES.AUDITOR,
+  ],
+  COMPLIANCE: [
+    USER_ROLES.ADMIN,
+    USER_ROLES.TREASURER,
+    USER_ROLES.COMMITTEE_MEMBER,
+    USER_ROLES.AUDITOR,
+  ],
+  REPORTS: [
+    USER_ROLES.ADMIN,
+    USER_ROLES.TREASURER,
+    USER_ROLES.COMMITTEE_MEMBER,
+    USER_ROLES.AUDITOR,
+    USER_ROLES.RESIDENT,
+  ],
+  SETTINGS: [
+    USER_ROLES.ADMIN,
+  ],
+};

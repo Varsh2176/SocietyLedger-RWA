@@ -1,0 +1,68 @@
+# Dependency directories
+node_modules/
+*/node_modules/
+**/node_modules/
+
+# Production build outputs
+dist/
+build/
+*/dist/
+**/dist/
+
+# Environment variables (all levels). Example files remain tracked.
+.env
+.env.*
+*.env
+*/.env
+*/.env.*
+**/.env
+**/.env.*
+!.env.example
+!**/.env.example
+
+# Operating System files
+.DS_Store
+Thumbs.db
+desktop.ini
+ehthumbs.db
+
+# Local database dumps and backups
+*.dump
+*.bson
+*.archive
+*.sql
+*.sqlite
+*.sqlite3
+*.bak
+*.backup
+dump/
+backups/
+
+# Certificates and private keys
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+id_rsa
+id_rsa.pub
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# Temporary files and local test artifacts
+*.tmp
+*.temp
+tmp/
+temp/
+coverage/
+.nyc_output/
+*.lcov
+
+# Private document uploads (local disk only; not source)
+backend/uploads/
+**/uploads/
+
